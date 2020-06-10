@@ -104,10 +104,10 @@ SDATA (ASN_OCTET_STR,   "from",                 SDF_WR|SDF_PERSIST|SDF_REQUIRED,
 SDATA (ASN_OCTET_STR,   "to",                   SDF_WR|SDF_PERSIST|SDF_REQUIRED, "", "to email field"),
 SDATA (ASN_OCTET_STR,   "subject",              SDF_WR|SDF_PERSIST|SDF_REQUIRED, "Log Center Summary", "subject email field"),
 SDATA (ASN_OCTET_STR,   "log_filename",         SDF_WR, "W.log", "Log filename. Available mask: DD/MM/CCYY-W-ZZZ"),
-SDATA (ASN_UNSIGNED64,  "max_rotatoryfile_size",SDF_WR|SDF_REQUIRED, MAX_ROTATORYFILE_SIZE, "Maximum log files size (in Megas)"),
-SDATA (ASN_UNSIGNED64,  "rotatory_bf_size",     SDF_WR|SDF_REQUIRED, ROTATORY_BUFFER_SIZE, "Buffer size of rotatory (in Megas)"),
-SDATA (ASN_INTEGER,     "min_free_disk",        SDF_WR|SDF_REQUIRED, MIN_FREE_DISK, "Minimun free percent disk"),
-SDATA (ASN_INTEGER,     "min_free_mem",         SDF_WR|SDF_REQUIRED, MIN_FREE_MEM, "Minimun free percent memory"),
+SDATA (ASN_UNSIGNED64,  "max_rotatoryfile_size",SDF_WR|SDF_PERSIST|SDF_REQUIRED, MAX_ROTATORYFILE_SIZE, "Maximum log files size (in Megas)"),
+SDATA (ASN_UNSIGNED64,  "rotatory_bf_size",     SDF_WR|SDF_PERSIST|SDF_REQUIRED, ROTATORY_BUFFER_SIZE, "Buffer size of rotatory (in Megas)"),
+SDATA (ASN_INTEGER,     "min_free_disk",        SDF_WR|SDF_PERSIST|SDF_REQUIRED, MIN_FREE_DISK, "Minimun free percent disk"),
+SDATA (ASN_INTEGER,     "min_free_mem",         SDF_WR|SDF_PERSIST|SDF_REQUIRED, MIN_FREE_MEM, "Minimun free percent memory"),
 SDATA (ASN_INTEGER,     "timeout",              SDF_RD,  1*1000, "Timeout"),
 SDATA_END()
 };
@@ -875,11 +875,11 @@ PRIVATE json_t *tail_log_message(hgobj gobj, uint32_t lines)
 /***************************************************************************
  *
  ***************************************************************************/
-PRIVATE int send_warn_free_disk(hgobj gobj, int percent)
+PRIVATE int send_warn_free_disk(hgobj gobj, int percent, int minimun)
 {
     char bf[256];
 
-    snprintf(bf, sizeof(bf), "Free disk (~%d%%) is TOO LOW", percent);
+    snprintf(bf, sizeof(bf), "Free disk (~%d%%) is TOO LOW (<%d%%)", percent, minimun);
 
     json_t *jn_msg = json_pack("{s:s, s:s, s:s, s:s, s:i}",
         "gobj",         gobj_full_name(gobj),
@@ -1073,7 +1073,7 @@ PRIVATE int ac_timeout(hgobj gobj, const char *event, json_t *kw, hgobj src)
             int free_percent = (fiData.f_bavail * 100)/fiData.f_blocks;
             if(free_percent <= min_free_disk) {
                 if(!priv->warn_free_disk) {
-                    send_warn_free_disk(gobj, free_percent);
+                    send_warn_free_disk(gobj, free_percent, min_free_disk);
                     priv->warn_free_disk = TRUE;
                 }
             } else {
