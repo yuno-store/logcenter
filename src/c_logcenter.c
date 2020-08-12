@@ -39,7 +39,7 @@ typedef struct {
  *              Prototypes
  ***************************************************************************/
 PRIVATE int cb_newfile(void *user_data, const char *old_filename, const char *new_filename);
-PRIVATE json_t *make_summary(hgobj gobj);
+PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors);
 PRIVATE int send_summary(hgobj gobj, GBUFFER *gbuf);
 PRIVATE int do_log_stats(hgobj gobj, int priority, json_t* kw);
 PRIVATE int reset_counters(hgobj gobj);
@@ -372,7 +372,7 @@ PRIVATE json_t *cmd_help(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
  ***************************************************************************/
 PRIVATE json_t *cmd_display_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
 {
-    json_t *jn_summary = make_summary(gobj);
+    json_t *jn_summary = make_summary(gobj, TRUE);
     return msg_iev_build_webix(
         gobj,
         0,
@@ -391,7 +391,7 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
     char fecha[90];
     current_timestamp(fecha, sizeof(fecha));
 
-    json_t *jn_summary = make_summary(gobj);
+    json_t *jn_summary = make_summary(gobj, FALSE);
     GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
     gbuf_printf(gbuf_summary, "From %s, at %s, Logcenter Summary:\r\n", _get_hostname(), fecha);
     json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
@@ -591,22 +591,24 @@ PRIVATE int send_summary(hgobj gobj, GBUFFER *gbuf)
 /***************************************************************************
  *
  ***************************************************************************/
-PRIVATE json_t *make_summary(hgobj gobj)
+PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors)
 {
     PRIVATE_DATA *priv = gobj_priv_data(gobj);
     json_t *jn_summary = json_object();
 
-    json_t *jn_internal_stats = json_pack("{s:I, s:I, s:I, s:I, s:I, s:I, s:I, s:I}",
-        "Alert",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_alerts"),
-        "Critical", (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_criticals"),
-        "Error",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_errors"),
-        "Warning",  (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_warnings"),
-        "Info",     (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_infos"),
-        "Debug",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_debugs"),
-        "Audit",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_audits"),
-        "Monitor",  (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_monitors")
-    );
-    json_object_set_new(jn_summary, "Internal Counters", jn_internal_stats);
+    if(show_internal_errors) {
+        json_t *jn_internal_stats = json_pack("{s:I, s:I, s:I, s:I, s:I, s:I, s:I, s:I}",
+            "Alert",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_alerts"),
+            "Critical", (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_criticals"),
+            "Error",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_errors"),
+            "Warning",  (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_warnings"),
+            "Info",     (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_infos"),
+            "Debug",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_debugs"),
+            "Audit",    (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_audits"),
+            "Monitor",  (json_int_t)(size_t)gobj_read_uint32_attr(gobj_yuno(), "log_monitors")
+        );
+        json_object_set_new(jn_summary, "Internal Counters", jn_internal_stats);
+    }
 
     json_t *jn_global_stats = json_pack("{s:I, s:I, s:I, s:I, s:I, s:I, s:I, s:I}",
         "Alert",    (json_int_t)priority_counter[LOG_ALERT],
@@ -652,7 +654,7 @@ PRIVATE int cb_newfile(void *user_data, const char *old_filename, const char *ne
         char fecha[90];
         current_timestamp(fecha, sizeof(fecha));
 
-        json_t *jn_summary = make_summary(gobj);
+        json_t *jn_summary = make_summary(gobj, FALSE);
         GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
         gbuf_printf(gbuf_summary, "From %s, %s, Logcenter Summary:\n\n", fecha, _get_hostname());
         json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
