@@ -162,7 +162,7 @@ PRIVATE void mt_create(hgobj gobj)
 {
     PRIVATE_DATA *priv = gobj_priv_data(gobj);
 
-    priv->timer = gobj_create("monitor", GCLASS_TIMER, 0, gobj);
+    priv->timer = gobj_create("", GCLASS_TIMER, 0, gobj);
     json_t *kw_gss_udps = json_pack("{s:s}",
         "url", gobj_read_str_attr(gobj, "url")
     );
