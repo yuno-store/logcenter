@@ -68,7 +68,7 @@ TARGET_LINK_LIBRARIES(logcenter
 
     pthread dl  # used by libuv
     lzma        # used by libunwind
-
+    uuid
 )
 
 ##############################################
