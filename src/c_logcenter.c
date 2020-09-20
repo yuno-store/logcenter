@@ -631,11 +631,11 @@ PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors)
     if(priority_counter[LOG_ERR]) {
         json_object_set(jn_summary, "Global Errors", priv->global_errors);
     }
-    if(priority_counter[LOG_INFO]) {
-        json_object_set(jn_summary, "Global Infos", priv->global_infos);
-    }
     if(priority_counter[LOG_WARNING]) {
         json_object_set(jn_summary, "Global Warnings", priv->global_warnings);
+    }
+    if(priority_counter[LOG_INFO]) {
+        json_object_set(jn_summary, "Global Infos", priv->global_infos);
     }
 
     return jn_summary;
