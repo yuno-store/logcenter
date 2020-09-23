@@ -1067,7 +1067,7 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     bf = gbuf_cur_rd_pointer(gbuf);
     if(*bf == '{') {
         gbuf_incref(gbuf);
-        json_t *jn_msg = gbuf2json(gbuf, 1); // gbuf stolen
+        json_t *jn_msg = gbuf2json(gbuf, 2); // gbuf stolen
         if(jn_msg) {
             do_log_stats(gobj, priority, jn_msg);
             json_decref(jn_msg);
