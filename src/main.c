@@ -17,7 +17,7 @@
 #define APP_NAME        "logcenter"
 #define APP_DOC         "Log Center"
 
-#define APP_VERSION     "4.2.24"
+#define APP_VERSION     "4.2.25"
 #define APP_DATETIME    __DATE__ " " __TIME__
 #define APP_SUPPORT     "<niyamaka at yuneta.io>"
 
