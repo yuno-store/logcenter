@@ -240,7 +240,7 @@ PRIVATE int mt_play(hgobj gobj)
         yuneta_realm_file(
             destination,
             sizeof(destination),
-            "data",
+            "logs",
             priv->log_filename,
             TRUE
         );
