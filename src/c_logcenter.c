@@ -622,7 +622,7 @@ PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors)
     );
     json_object_set_new(jn_summary, "Global Counters", jn_global_stats);
 
-    if(show_internal_errors) {
+    if(show_internal_errors) { // THE same but in different order
         if(priority_counter[LOG_INFO]) {
             json_object_set(jn_summary, "Global Infos", priv->global_infos);
         }
@@ -734,27 +734,86 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
     if(!msgset || !msg) {
         return -1;
     }
-    json_t *jn_msgset;
-    json_t *jn_msg;
 
-    if(kw_has_key(jn_dict, msgset)) {
-        jn_msgset = json_object_get(jn_dict, msgset);
+//     json_t *jn_set;
+//     json_t *jn_value;
+//     if(kw_has_key(jn_dict, msgset)) {
+//         jn_set = json_object_get(jn_dict, msgset);
+//     } else {
+//         jn_set = json_object();
+//         json_object_set_new(jn_dict, msgset, jn_set);
+//     }
+
+    json_t *jn_set = kw_get_dict(jn_dict, msgset, json_object(), KW_CREATE);
+
+/*
+ *  TODO en vez estar harcoded que esté en config.
+    "msg",          "%s", "path NOT FOUND, default value returned",
+    "path",         "%s", path,
+
+    "msg",          "%s", "GClass Attribute NOT FOUND",
+    "gclass",       "%s", gobj_gclass_name(gobj),
+    "attr",         "%s", attr,
+
+    "msg",          "%s", "Publish event WITHOUT subscribers",
+    "event",        "%s", event,
+ */
+    if(strcmp(msg, "path NOT FOUND, default value returned")==0) {
+        const char *path = kw_get_str(kw, "path", 0, 0);
+        if(!empty_string(path)) {
+            json_t *jn_level1 = kw_get_dict(jn_set, msg, json_object(), KW_CREATE);
+            json_int_t counter = kw_get_int(jn_level1, path, 0, KW_CREATE);
+            counter++;
+            json_object_set_new(jn_level1, path, json_integer(counter));
+        } else {
+            json_int_t counter = kw_get_int(jn_set, msg, 0, KW_CREATE);
+            counter++;
+            json_object_set_new(jn_set, msg, json_integer(counter));
+        }
+
+    } else if(strcmp(msg, "GClass Attribute NOT FOUND")==0) {
+        const char *attr = kw_get_str(kw, "attr", 0, 0);
+        if(!empty_string(attr)) {
+            json_t *jn_level1 = kw_get_dict(jn_set, msg, json_object(), KW_CREATE);
+            json_int_t counter = kw_get_int(jn_level1, attr, 0, KW_CREATE);
+            counter++;
+            json_object_set_new(jn_level1, attr, json_integer(counter));
+        } else {
+            json_int_t counter = kw_get_int(jn_set, msg, 0, KW_CREATE);
+            counter++;
+            json_object_set_new(jn_set, msg, json_integer(counter));
+        }
+
+   } else if(strcmp(msg, "Publish event WITHOUT subscribers")==0) {
+        const char *event = kw_get_str(kw, "event", 0, 0);
+        if(!empty_string(event)) {
+            json_t *jn_level1 = kw_get_dict(jn_set, msg, json_object(), KW_CREATE);
+            json_int_t counter = kw_get_int(jn_level1, event, 0, KW_CREATE);
+            counter++;
+            json_object_set_new(jn_level1, event, json_integer(counter));
+        } else {
+            json_int_t counter = kw_get_int(jn_set, msg, 0, KW_CREATE);
+            counter++;
+            json_object_set_new(jn_set, msg, json_integer(counter));
+        }
+
     } else {
-        jn_msgset = json_object();
-        json_object_set_new(jn_dict, msgset, jn_msgset);
+        json_int_t counter = kw_get_int(jn_set, msg, 0, KW_CREATE);
+        counter++;
+        json_object_set_new(jn_set, msg, json_integer(counter));
     }
 
-    if(kw_has_key(jn_msgset, msg)) {
-        jn_msg = json_object_get(jn_msgset, msg);
-    } else {
-        jn_msg = json_integer(0);
-        json_object_set_new(jn_msgset, msg, jn_msg);
-    }
-
-    json_int_t counter = json_integer_value(jn_msg);
-    counter++;
-
-    json_object_set_new(jn_msgset, msg, json_integer(counter));
+//     if(kw_has_key(jn_set, msg)) {
+//         jn_value = json_object_get(jn_set, msg);
+//     } else {
+//         jn_value = json_integer(0);
+//         json_object_set_new(jn_set, msg, jn_value);
+//     }
+//
+//     json_int_t counter = json_integer_value(jn_value);
+//     counter++;
+//
+//     json_object_set_new(jn_set, msg, json_integer(counter));
 
     return 0;
 }
@@ -902,7 +961,7 @@ PRIVATE int send_warn_free_disk(hgobj gobj, int percent, int minimun)
 
     snprintf(bf, sizeof(bf), "Free disk (~%d%%) is TOO LOW (<%d%%)", percent, minimun);
 
-    json_t *jn_msg = json_pack("{s:s, s:s, s:s, s:s, s:i}",
+    json_t *jn_value = json_pack("{s:s, s:s, s:s, s:s, s:i}",
         "gobj",         gobj_full_name(gobj),
         "function",     __FUNCTION__,
         "msgset",       MSGSET_SYSTEM_ERROR,
@@ -912,8 +971,8 @@ PRIVATE int send_warn_free_disk(hgobj gobj, int percent, int minimun)
 
     int priority = LOG_ALERT;
     priority_counter[priority]++;
-    do_log_stats(gobj, priority, jn_msg);
-    json_decref(jn_msg);
+    do_log_stats(gobj, priority, jn_value);
+    json_decref(jn_value);
     return 0;
 }
 
@@ -926,7 +985,7 @@ PRIVATE int send_warn_free_mem(hgobj gobj, int percent)
 
     snprintf(bf, sizeof(bf), "Free mem (~%d%%) is TOO LOW", percent);
 
-    json_t *jn_msg = json_pack("{s:s, s:s, s:s, s:s, s:i}",
+    json_t *jn_value = json_pack("{s:s, s:s, s:s, s:s, s:i}",
         "gobj",         gobj_full_name(gobj),
         "function",     __FUNCTION__,
         "msgset",       MSGSET_SYSTEM_ERROR,
@@ -936,8 +995,8 @@ PRIVATE int send_warn_free_mem(hgobj gobj, int percent)
 
     int priority = LOG_ALERT;
     priority_counter[priority]++;
-    do_log_stats(gobj, priority, jn_msg);
-    json_decref(jn_msg);
+    do_log_stats(gobj, priority, jn_value);
+    json_decref(jn_value);
     return 0;
 }
 
@@ -1067,10 +1126,10 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     bf = gbuf_cur_rd_pointer(gbuf);
     if(*bf == '{') {
         gbuf_incref(gbuf);
-        json_t *jn_msg = gbuf2json(gbuf, 2); // gbuf stolen
-        if(jn_msg) {
-            do_log_stats(gobj, priority, jn_msg);
-            json_decref(jn_msg);
+        json_t *jn_value = gbuf2json(gbuf, 2); // gbuf stolen
+        if(jn_value) {
+            do_log_stats(gobj, priority, jn_value);
+            json_decref(jn_value);
         }
     }
 
