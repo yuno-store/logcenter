@@ -17,7 +17,7 @@
 #define APP_NAME        "logcenter"
 #define APP_DOC         "Log Center"
 
-#define APP_VERSION     "4.6.1"
+#define APP_VERSION     "4.6.2"
 #define APP_DATETIME    __DATE__ " " __TIME__
 #define APP_SUPPORT     "<niyamaka at yuneta.io>"
 
@@ -31,7 +31,9 @@ PRIVATE char fixed_config[]= "\
         'tags': ['yuneta', 'utils']                                 \n\
     },                                                              \n\
     'environment': {                                                \n\
-        'use_system_memory': true,                                 \n\
+        'work_dir': '/yuneta',                                      \n\
+        'domain_dir': 'realms/agent/logcenter',                     \n\
+        'use_system_memory': true,                                  \n\
         'log_gbmem_info': true,                                     \n\
         'MEM_MIN_BLOCK': 64,                                        \n\
         'MEM_MAX_BLOCK': 52428800,              #^^  50*M           \n\

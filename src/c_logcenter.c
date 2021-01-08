@@ -271,7 +271,9 @@ PRIVATE int mt_play(hgobj gobj)
     }
 
     set_timeout_periodic(priv->timer, priv->timeout);
-    gobj_start(priv->gobj_gss_udp_s);
+    if(priv->gobj_gss_udp_s) {
+        gobj_start(priv->gobj_gss_udp_s);
+    }
 
     return 0;
 }
@@ -287,7 +289,9 @@ PRIVATE int mt_pause(hgobj gobj)
 
     clear_timeout(priv->timer);
     gobj_stop(priv->timer);
-    gobj_stop(priv->gobj_gss_udp_s);
+    if(priv->gobj_gss_udp_s) {
+        gobj_stop(priv->gobj_gss_udp_s);
+    }
 
     return 0;
 }
