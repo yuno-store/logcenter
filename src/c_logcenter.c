@@ -99,7 +99,7 @@ SDATA_END()
  *---------------------------------------------*/
 PRIVATE sdata_desc_t tattr_desc[] = {
 /*-ATTR-type------------name--------------------flag------------------------default---------description---------- */
-SDATA (ASN_OCTET_STR,   "url",                  SDF_RD|SDF_REQUIRED, "udp://0.0.0.0:1992", "url of udp server"),
+SDATA (ASN_OCTET_STR,   "url",                  SDF_RD|SDF_REQUIRED, "udp://127.0.0.1:1992", "url of udp server"),
 SDATA (ASN_OCTET_STR,   "from",                 SDF_WR|SDF_PERSIST|SDF_REQUIRED, "", "from email field"),
 SDATA (ASN_OCTET_STR,   "to",                   SDF_WR|SDF_PERSIST|SDF_REQUIRED, "", "to email field"),
 SDATA (ASN_OCTET_STR,   "subject",              SDF_WR|SDF_PERSIST|SDF_REQUIRED, "Log Center Summary", "subject email field"),
