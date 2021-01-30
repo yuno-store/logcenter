@@ -762,7 +762,9 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
     "msg",          "%s", "Publish event WITHOUT subscribers",
     "event",        "%s", event,
  */
-    if(strcmp(msg, "path NOT FOUND, default value returned")==0) {
+    if(strncmp(msg, "path NOT FOUND", strlen("path NOT FOUND"))==0 ||
+        strncmp(msg, "path MUST BE", strlen("path MUST BE"))==0
+    ) {
         const char *path = kw_get_str(kw, "path", 0, 0);
         if(!empty_string(path)) {
             json_t *jn_level1 = kw_get_dict(jn_set, msg, json_object(), KW_CREATE);
