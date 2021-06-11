@@ -143,6 +143,8 @@ typedef struct _PRIVATE_DATA {
 
     BOOL warn_free_disk;
     BOOL warn_free_mem;
+    int last_disk_free_percent;
+    int last_mem_free_percent;
 } PRIVATE_DATA;
 
 
@@ -665,33 +667,45 @@ PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors)
 }
 
 /***************************************************************************
+ *
+ ***************************************************************************/
+PRIVATE int send_report_email(hgobj gobj, BOOL reset)
+{
+    /*
+     *  Day changed, report errors
+     */
+    char fecha[90];
+    current_timestamp(fecha, sizeof(fecha));
+
+    json_t *jn_summary = make_summary(gobj, FALSE);
+    GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
+    gbuf_printf(gbuf_summary, "From %s, %s, Logcenter Summary:\n\n", fecha, _get_hostname());
+    json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
+    gbuf_printf(gbuf_summary, "\n\n");
+
+    /*
+     *  Reset counters
+     */
+    if(reset) {
+        reset_counters(gobj);
+    }
+
+    /*
+     *  Send summary
+     */
+    send_summary(gobj, gbuf_summary);
+
+    return 0;
+}
+
+/***************************************************************************
  *  old_filename can be null
  ***************************************************************************/
 PRIVATE int cb_newfile(void *user_data, const char *old_filename, const char *new_filename)
 {
     hgobj gobj = user_data;
     if(!empty_string(old_filename)) {
-        /*
-         *  Day changed, report errors
-         */
-        char fecha[90];
-        current_timestamp(fecha, sizeof(fecha));
-
-        json_t *jn_summary = make_summary(gobj, FALSE);
-        GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
-        gbuf_printf(gbuf_summary, "From %s, %s, Logcenter Summary:\n\n", fecha, _get_hostname());
-        json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
-        gbuf_printf(gbuf_summary, "\n\n");
-
-        /*
-         *  Reset counters
-         */
-        reset_counters(gobj);
-
-        /*
-         *  Send summary
-         */
-        send_summary(gobj, gbuf_summary);
+        send_report_email(gobj, TRUE);
     }
     return 0;
 }
@@ -1151,16 +1165,20 @@ PRIVATE int ac_timeout(hgobj gobj, const char *event, json_t *kw, hgobj src)
 {
     PRIVATE_DATA *priv = gobj_priv_data(gobj);
 
+    BOOL send_report = FALSE;
+
     const char *work_dir = yuneta_work_dir();
     if(!priv->warn_free_disk && !empty_string(work_dir)) {
         size_t min_free_disk = gobj_read_int32_attr(gobj, "min_free_disk");
         struct statvfs64 fiData;
         if(statvfs64(work_dir, &fiData) == 0) {
-            int free_percent = (fiData.f_bavail * 100)/fiData.f_blocks;
-            if(free_percent <= min_free_disk) {
-                if(!priv->warn_free_disk) {
-                    send_warn_free_disk(gobj, free_percent, min_free_disk);
+            int disk_free_percent = (fiData.f_bavail * 100)/fiData.f_blocks;
+            if(disk_free_percent <= min_free_disk) {
+                if(!priv->warn_free_disk || priv->last_disk_free_percent != disk_free_percent) {
+                    send_warn_free_disk(gobj, disk_free_percent, min_free_disk);
                     priv->warn_free_disk = TRUE;
+                    priv->last_disk_free_percent = disk_free_percent;
+                    send_report = TRUE;
                 }
             } else {
                 priv->warn_free_disk = FALSE;
@@ -1172,15 +1190,21 @@ PRIVATE int ac_timeout(hgobj gobj, const char *event, json_t *kw, hgobj src)
         size_t min_free_mem = gobj_read_int32_attr(gobj, "min_free_mem");
         uint64_t total_memory = uv_get_total_memory()/1024;
         unsigned long free_memory = free_ram_in_kb();
-        int free_percent = (free_memory * 100)/total_memory;
-        if(free_percent <= min_free_mem) {
+        int mem_free_percent = (free_memory * 100)/total_memory;
+        if(mem_free_percent <= min_free_mem) {
             if(!priv->warn_free_mem) {
-                send_warn_free_mem(gobj, free_percent);
+                send_warn_free_mem(gobj, mem_free_percent);
                 priv->warn_free_mem = TRUE;
+                priv->last_mem_free_percent = mem_free_percent;
+                send_report = TRUE;
             }
         } else {
             priv->warn_free_mem = FALSE;
         }
+    }
+
+    if(send_report) {
+        send_report_email(gobj, FALSE);
     }
 
     KW_DECREF(kw);
