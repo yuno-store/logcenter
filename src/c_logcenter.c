@@ -141,8 +141,8 @@ typedef struct _PRIVATE_DATA {
     json_t *global_warnings;
     json_t *global_infos;
 
-    BOOL warn_free_disk;
-    BOOL warn_free_mem;
+    time_t warn_free_disk;
+    time_t warn_free_mem;
     int last_disk_free_percent;
     int last_mem_free_percent;
 } PRIVATE_DATA;
@@ -182,6 +182,9 @@ PRIVATE void mt_create(hgobj gobj)
     priv->global_errors = json_object();
     priv->global_warnings = json_object();
     priv->global_infos = json_object();
+
+    priv->warn_free_disk = start_sectimer(10);
+    priv->warn_free_mem = start_sectimer(10);
 }
 
 /***************************************************************************
@@ -521,9 +524,6 @@ PRIVATE int reset_counters(hgobj gobj)
     json_object_clear(priv->global_errors);
     json_object_clear(priv->global_warnings);
     json_object_clear(priv->global_infos);
-
-    priv->warn_free_disk = FALSE;
-    priv->warn_free_mem = FALSE;
 
     return 0;
 }
@@ -1168,39 +1168,35 @@ PRIVATE int ac_timeout(hgobj gobj, const char *event, json_t *kw, hgobj src)
     BOOL send_report = FALSE;
 
     const char *work_dir = yuneta_work_dir();
-    if(!priv->warn_free_disk && !empty_string(work_dir)) {
-        size_t min_free_disk = gobj_read_int32_attr(gobj, "min_free_disk");
-        struct statvfs64 fiData;
-        if(statvfs64(work_dir, &fiData) == 0) {
-            int disk_free_percent = (fiData.f_bavail * 100)/fiData.f_blocks;
-            if(disk_free_percent <= min_free_disk) {
-                if(!priv->warn_free_disk || priv->last_disk_free_percent != disk_free_percent) {
-                    send_warn_free_disk(gobj, disk_free_percent, min_free_disk);
-                    priv->warn_free_disk = TRUE;
-                    priv->last_disk_free_percent = disk_free_percent;
-                    send_report = TRUE;
+    if(test_sectimer(priv->warn_free_disk)) {
+        if(!empty_string(work_dir)) {
+            size_t min_free_disk = gobj_read_int32_attr(gobj, "min_free_disk");
+            struct statvfs64 fiData;
+            if(statvfs64(work_dir, &fiData) == 0) {
+                int disk_free_percent = (fiData.f_bavail * 100)/fiData.f_blocks;
+                if(disk_free_percent <= min_free_disk) {
+                    if(priv->last_disk_free_percent != disk_free_percent) {
+                        send_warn_free_disk(gobj, disk_free_percent, min_free_disk);
+                        priv->last_disk_free_percent = disk_free_percent;
+                        send_report = TRUE;
+                    }
                 }
-            } else {
-                priv->warn_free_disk = FALSE;
             }
         }
+        priv->warn_free_disk = start_sectimer(60*60*24);
     }
 
-    if(!priv->warn_free_mem) {
+    if(test_sectimer(priv->warn_free_mem)) {
         size_t min_free_mem = gobj_read_int32_attr(gobj, "min_free_mem");
         uint64_t total_memory = uv_get_total_memory()/1024;
         unsigned long free_memory = free_ram_in_kb();
         int mem_free_percent = (free_memory * 100)/total_memory;
         if(mem_free_percent <= min_free_mem) {
-            if(!priv->warn_free_mem) {
-                send_warn_free_mem(gobj, mem_free_percent);
-                priv->warn_free_mem = TRUE;
-                priv->last_mem_free_percent = mem_free_percent;
-                send_report = TRUE;
-            }
-        } else {
-            priv->warn_free_mem = FALSE;
+            send_warn_free_mem(gobj, mem_free_percent);
+            priv->last_mem_free_percent = mem_free_percent;
+            send_report = TRUE;
         }
+        priv->warn_free_mem = start_sectimer(60*60*24);
     }
 
     if(send_report) {
