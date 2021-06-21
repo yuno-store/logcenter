@@ -1175,7 +1175,7 @@ PRIVATE int ac_timeout(hgobj gobj, const char *event, json_t *kw, hgobj src)
             if(statvfs64(work_dir, &fiData) == 0) {
                 int disk_free_percent = (fiData.f_bavail * 100)/fiData.f_blocks;
                 if(disk_free_percent <= min_free_disk) {
-                    if(priv->last_disk_free_percent != disk_free_percent) {
+                    if(priv->last_disk_free_percent != disk_free_percent || 1) {
                         send_warn_free_disk(gobj, disk_free_percent, min_free_disk);
                         priv->last_disk_free_percent = disk_free_percent;
                         send_report = TRUE;
