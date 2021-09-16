@@ -402,7 +402,9 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
 
     json_t *jn_summary = make_summary(gobj, FALSE);
     GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
-    gbuf_printf(gbuf_summary, "From %s, at %s, Logcenter Summary:\r\n", _get_hostname(), fecha);
+    gbuf_printf(gbuf_summary, "From %s (%s), at %s, Logcenter Summary:\n\n",
+        _get_hostname(), node_uuid(), fecha
+    );
     json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
     gbuf_printf(gbuf_summary, "\r\n");
     send_summary(gobj, gbuf_summary);
@@ -679,7 +681,9 @@ PRIVATE int send_report_email(hgobj gobj, BOOL reset)
 
     json_t *jn_summary = make_summary(gobj, FALSE);
     GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
-    gbuf_printf(gbuf_summary, "From %s, %s, Logcenter Summary:\n\n", fecha, _get_hostname());
+    gbuf_printf(gbuf_summary, "From %s (%s), at %s, Logcenter Summary:\n\n",
+        _get_hostname(), node_uuid(), fecha
+    );
     json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
     gbuf_printf(gbuf_summary, "\n\n");
 
