@@ -402,8 +402,11 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
 
     json_t *jn_summary = make_summary(gobj, FALSE);
     GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
-    gbuf_printf(gbuf_summary, "From %s (%s), at %s, Logcenter Summary:\n\n",
-        _get_hostname(), node_uuid(), fecha
+    gbuf_printf(gbuf_summary, "From %s (%s, %s), at %s, Logcenter Summary:\n\n",
+        _get_hostname(),
+        node_uuid(),
+        __yuneta_version__,
+        fecha
     );
     json2gbuf(gbuf_summary, jn_summary, JSON_INDENT(4));
     gbuf_printf(gbuf_summary, "\r\n");
