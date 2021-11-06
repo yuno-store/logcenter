@@ -402,7 +402,7 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
 
     json_t *jn_summary = make_summary(gobj, FALSE);
     GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
-    gbuf_printf(gbuf_summary, "From %s (%s, %s), at %s, \n\n",
+    gbuf_printf(gbuf_summary, "From %s (%s, %s)\nat %s, \n\n",
         _get_hostname(),
         node_uuid(),
         __yuneta_version__,
@@ -684,7 +684,7 @@ PRIVATE int send_report_email(hgobj gobj, BOOL reset)
 
     json_t *jn_summary = make_summary(gobj, FALSE);
     GBUFFER *gbuf_summary = gbuf_create(32*1024, MIN(1*1024*1024L, gbmem_get_maximum_block()), 0, codec_utf_8);
-    gbuf_printf(gbuf_summary, "From %s (%s, %s), at %s, Logcenter Summary:\n\n",
+    gbuf_printf(gbuf_summary, "From %s (%s, %s)\nat %s, Logcenter Summary:\n\n",
         _get_hostname(),
         node_uuid(),
         __yuneta_version__,
