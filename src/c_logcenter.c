@@ -415,7 +415,7 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
     return msg_iev_build_webix(
         gobj,
         0,
-        json_local_sprintf("Summary report sent by email to %s", gobj_read_str_attr(gobj, "to")),
+        json_sprintf("Summary report sent by email to %s", gobj_read_str_attr(gobj, "to")),
         0,
         0,
         kw  // owned
@@ -447,7 +447,7 @@ PRIVATE json_t *cmd_search(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
         return msg_iev_build_webix(
             gobj,
             -1,
-            json_local_sprintf("What text?"),
+            json_sprintf("What text?"),
             0,
             0,
             kw  // owned
