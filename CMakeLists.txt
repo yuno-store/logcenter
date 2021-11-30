@@ -70,6 +70,7 @@ TARGET_LINK_LIBRARIES(logcenter
     lzma        # used by libunwind
     uuid
     m
+    util
 )
 
 ##############################################
