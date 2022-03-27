@@ -1046,7 +1046,7 @@ PRIVATE int send_warn_free_mem(hgobj gobj, int percent)
 PRIVATE int ac_on_open(hgobj gobj, const char *event, json_t *kw, hgobj src)
 {
     KW_DECREF(kw);
-    return 1;
+    return 0;
 }
 
 /***************************************************************************
