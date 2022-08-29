@@ -632,6 +632,7 @@ PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors)
         "Monitor",  (json_int_t)priority_counter[LOG_MONITOR]
     );
     json_object_set_new(jn_summary, "Global Counters", jn_global_stats);
+    json_object_set_new(jn_summary, "Node Owner", json_string(gobj_node_owner()));
 
     if(show_internal_errors) { // THE same but in different order
         if(priority_counter[LOG_INFO]) {
