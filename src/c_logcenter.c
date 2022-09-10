@@ -912,15 +912,12 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
     }
 
     if(strcmp(msgset, MSGSET_QUEUE_ALARM)==0) {
-printf("=========================================> ALARM QUEUE enable:%d\n", priv->restart_on_alarm);
         if(priv->restart_on_alarm) {
             const char *restart_yuneta_command = gobj_read_str_attr(gobj, "restart_yuneta_command");
             if(priv->timeout_restart_yuneta) {
                 if(priv->t_restart == 0) {
-printf("=========================================> FIRST RESTART\n");
                     priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
                     int ret = system(restart_yuneta_command);
-printf("=========================================> FIRST RESTART RETURN %d\n", ret);
                     if(ret < 0) {
                         log_error(1,
                             "gobj",         "%s", gobj_full_name(gobj),
@@ -932,7 +929,6 @@ printf("=========================================> FIRST RESTART RETURN %d\n", r
                     }
                 } else {
                     if(test_sectimer(priv->t_restart)) {
-printf("=========================================> NEXT RESTART\n");
                         priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
                         int ret = system(restart_yuneta_command);
                         if(ret < 0) {
