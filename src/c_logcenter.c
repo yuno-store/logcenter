@@ -917,7 +917,7 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
             if(priv->timeout_restart_yuneta) {
                 if(priv->t_restart == 0) {
                     priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
-                    int ret = system(restart_yuneta_command);
+                    int ret = pty_sync_spawn(restart_yuneta_command);
                     if(ret < 0) {
                         log_error(1,
                             "gobj",         "%s", gobj_full_name(gobj),
