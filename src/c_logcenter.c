@@ -532,7 +532,11 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
         return msg_iev_build_webix(
             gobj,
             -1,
-            json_sprintf("What enable?"),
+            json_sprintf("What enable?.\nNow enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds, queue_restart_limit: %d",
+                priv->restart_on_alarm?"YES":"NO",
+                priv->timeout_restart_yuneta,
+                priv->queue_restart_limit
+            ),
             0,
             0,
             kw  // owned
@@ -544,7 +548,11 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
             return msg_iev_build_webix(
                 gobj,
                 -1,
-                json_sprintf("timeout_restart_yuneta must be >= 3600 (1 hour) (Now is %d seconds)", priv->timeout_restart_yuneta),
+                json_sprintf("timeout_restart_yuneta must be >= 3600 (1 hour).\nNow enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds, queue_restart_limit: %d",
+                    priv->restart_on_alarm?"YES":"NO",
+                    priv->timeout_restart_yuneta,
+                    priv->queue_restart_limit
+                ),
                 0,
                 0,
                 kw  // owned
@@ -557,7 +565,11 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
             return msg_iev_build_webix(
                 gobj,
                 -1,
-                json_sprintf("queue_restart_limit must be >= 10000 (1 hour) (Now is %d)", priv->queue_restart_limit),
+                json_sprintf("queue_restart_limit must be >= 10000 (1 hour).\nNow enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds, queue_restart_limit: %d",
+                    priv->restart_on_alarm?"YES":"NO",
+                    priv->timeout_restart_yuneta,
+                    priv->queue_restart_limit
+                ),
                 0,
                 0,
                 kw  // owned
@@ -933,7 +945,8 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
     }
 
     if(strcmp(msgset, MSGSET_QUEUE_ALARM)==0) {
-        if(priv->restart_on_alarm) {
+        json_int_t queue_size = kw_get_int(kw, "queue_size", 10000, 0);
+        if(priv->restart_on_alarm && queue_size >= priv->queue_restart_limit) {
             const char *restart_yuneta_command = gobj_read_str_attr(gobj, "restart_yuneta_command");
             if(priv->timeout_restart_yuneta) {
                 if(priv->t_restart == 0) {
