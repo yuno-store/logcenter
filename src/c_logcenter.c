@@ -118,7 +118,7 @@ SDATA (ASN_INTEGER,     "min_free_disk",        SDF_WR|SDF_PERSIST|SDF_REQUIRED,
 SDATA (ASN_INTEGER,     "min_free_mem",         SDF_WR|SDF_PERSIST|SDF_REQUIRED, MIN_FREE_MEM, "Minimun free percent memory"),
 
 SDATA (ASN_BOOLEAN,     "restart_on_alarm",     SDF_PERSIST|SDF_WR,             FALSE, "If true the logcenter will execute 'restart_yuneta_command' after receive a queue alarm. Next restart will not execute until 'timeout_restart_yuneta' has pass"),
-SDATA (ASN_OCTET_STR,   "restart_yuneta_command", SDF_WR|SDF_PERSIST,           "/yuneta/bin/yshutdown -s; sleep 2; /yuneta/agent/yuneta_agent --start --config-file=/yuneta/agent/yuneta_agent.json", "Restart yuneta command"),
+SDATA (ASN_OCTET_STR,   "restart_yuneta_command", SDF_WR|SDF_PERSIST,           "/yuneta/bin/yshutdown -s; sleep 1; /yuneta/agent/yuneta_agent --start --config-file=/yuneta/agent/yuneta_agent.json", "Restart yuneta command"),
 SDATA (ASN_UNSIGNED,    "timeout_restart_yuneta",SDF_PERSIST|SDF_WR,        1*60*60, "Timeout between restarts in seconds"),
 
 SDATA (ASN_INTEGER,     "timeout",              SDF_RD,  1*1000, "Timeout"),
@@ -543,14 +543,14 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
     }
 
     if(timeout_restart_yuneta < 1*60*60) {
-// TODO repon       return msg_iev_build_webix(
-//            gobj,
-//            -1,
-//            json_sprintf("timeout_restart_yuneta must be < 3600 (1 hour) (Now is %d seconds)", priv->timeout_restart_yuneta),
-//            0,
-//            0,
-//            kw  // owned
-//        );
+       return msg_iev_build_webix(
+            gobj,
+            -1,
+            json_sprintf("timeout_restart_yuneta must be < 3600 (1 hour) (Now is %d seconds)", priv->timeout_restart_yuneta),
+            0,
+            0,
+            kw  // owned
+        );
     }
 
     gobj_write_bool_attr(gobj, "restart_on_alarm", enable?TRUE:FALSE);
@@ -562,7 +562,7 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
     return msg_iev_build_webix(
         gobj,
         0,
-        json_sprintf("Enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds)",
+        json_sprintf("Enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds",
              enable?"YES":"NO",
              priv->timeout_restart_yuneta),
         0,
@@ -917,7 +917,7 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
             if(priv->timeout_restart_yuneta) {
                 if(priv->t_restart == 0) {
                     priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
-                    int ret = pty_sync_spawn(restart_yuneta_command);
+                    int ret = system(restart_yuneta_command);
                     if(ret < 0) {
                         log_error(1,
                             "gobj",         "%s", gobj_full_name(gobj),
