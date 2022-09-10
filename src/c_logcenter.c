@@ -78,6 +78,7 @@ PRIVATE sdata_desc_t pm_restart_yuneta[] = {
 /*-PM----type-----------name------------flag------------default-----description---------- */
 SDATAPM (ASN_BOOLEAN,   "enable",       0,              0,          "Set 1 to enable restart yuneta on queue alarm"),
 SDATAPM (ASN_UNSIGNED,  "timeout_restart_yuneta",       0,          0, "Timeout between restarts in seconds"),
+SDATAPM (ASN_UNSIGNED,  "queue_restart_limit",          0,          0, "Restart yuneta only if queue size is greater than 'queue_restart_limit'"),
 SDATA_END()
 };
 PRIVATE sdata_desc_t pm_help[] = {
@@ -120,6 +121,7 @@ SDATA (ASN_INTEGER,     "min_free_mem",         SDF_WR|SDF_PERSIST|SDF_REQUIRED,
 SDATA (ASN_BOOLEAN,     "restart_on_alarm",     SDF_PERSIST|SDF_WR,             FALSE, "If true the logcenter will execute 'restart_yuneta_command' after receive a queue alarm. Next restart will not execute until 'timeout_restart_yuneta' has pass"),
 SDATA (ASN_OCTET_STR,   "restart_yuneta_command", SDF_WR|SDF_PERSIST,           "/yuneta/bin/yshutdown -s; sleep 1; /yuneta/agent/yuneta_agent --start --config-file=/yuneta/agent/yuneta_agent.json", "Restart yuneta command"),
 SDATA (ASN_UNSIGNED,    "timeout_restart_yuneta",SDF_PERSIST|SDF_WR,        1*60*60, "Timeout between restarts in seconds"),
+SDATA (ASN_UNSIGNED,    "queue_restart_limit",  SDF_PERSIST|SDF_WR,        10000, "Restart yuneta when queue size is greater"),
 
 SDATA (ASN_INTEGER,     "timeout",              SDF_RD,  1*1000, "Timeout"),
 SDATA_END()
@@ -161,6 +163,7 @@ typedef struct _PRIVATE_DATA {
 
     BOOL restart_on_alarm;
     uint32_t timeout_restart_yuneta;
+    uint32_t queue_restart_limit;
     time_t t_restart;
 } PRIVATE_DATA;
 
@@ -195,6 +198,7 @@ PRIVATE void mt_create(hgobj gobj)
     SET_PRIV(restart_on_alarm,          gobj_read_bool_attr)
     SET_PRIV(log_filename,              gobj_read_str_attr)
     SET_PRIV(timeout_restart_yuneta,    gobj_read_uint32_attr)
+    SET_PRIV(queue_restart_limit,       gobj_read_uint32_attr)
 
     priv->global_alerts = json_object();
     priv->global_criticals = json_object();
@@ -218,6 +222,7 @@ PRIVATE void mt_writing(hgobj gobj, const char *path)
         if(priv->timeout_restart_yuneta == 0) {
             priv->t_restart = 0;
         }
+    ELIF_EQ_SET_PRIV(queue_restart_limit,       gobj_read_uint32_attr)
     ELIF_EQ_SET_PRIV(restart_on_alarm,          gobj_read_bool_attr)
         if(priv->restart_on_alarm == 0) {
             priv->t_restart = 0;
@@ -521,6 +526,8 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
 
     int enable = kw_get_int(kw, "enable", -1, KW_WILD_NUMBER);
     int timeout_restart_yuneta = kw_get_int(kw, "timeout_restart_yuneta", -1, KW_WILD_NUMBER);
+    int queue_restart_limit = kw_get_int(kw, "queue_restart_limit", -1, KW_WILD_NUMBER);
+
     if(enable == -1) {
         return msg_iev_build_webix(
             gobj,
@@ -531,40 +538,54 @@ PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgob
             kw  // owned
         );
     }
-    if(timeout_restart_yuneta == -1) {
-        return msg_iev_build_webix(
-            gobj,
-            -1,
-            json_sprintf("What timeout_restart_yuneta? (Now is %d seconds)", priv->timeout_restart_yuneta),
-            0,
-            0,
-            kw  // owned
-        );
+
+    if(timeout_restart_yuneta != -1) {
+        if(timeout_restart_yuneta < 1*60*60) {
+            return msg_iev_build_webix(
+                gobj,
+                -1,
+                json_sprintf("timeout_restart_yuneta must be >= 3600 (1 hour) (Now is %d seconds)", priv->timeout_restart_yuneta),
+                0,
+                0,
+                kw  // owned
+            );
+        }
     }
 
-    if(timeout_restart_yuneta < 1*60*60) {
-       return msg_iev_build_webix(
-            gobj,
-            -1,
-            json_sprintf("timeout_restart_yuneta must be < 3600 (1 hour) (Now is %d seconds)", priv->timeout_restart_yuneta),
-            0,
-            0,
-            kw  // owned
-        );
+    if(queue_restart_limit != -1) {
+        if(queue_restart_limit < 10000) {
+            return msg_iev_build_webix(
+                gobj,
+                -1,
+                json_sprintf("queue_restart_limit must be >= 10000 (1 hour) (Now is %d)", priv->queue_restart_limit),
+                0,
+                0,
+                kw  // owned
+            );
+        }
     }
 
     gobj_write_bool_attr(gobj, "restart_on_alarm", enable?TRUE:FALSE);
-    gobj_write_uint32_attr(gobj, "timeout_restart_yuneta", timeout_restart_yuneta);
-
     gobj_save_persistent_attrs(gobj, json_string("restart_on_alarm"));
-    gobj_save_persistent_attrs(gobj, json_string("timeout_restart_yuneta"));
+
+    if(timeout_restart_yuneta != -1) {
+        gobj_write_uint32_attr(gobj, "timeout_restart_yuneta", timeout_restart_yuneta);
+        gobj_save_persistent_attrs(gobj, json_string("timeout_restart_yuneta"));
+    }
+
+    if(queue_restart_limit != -1) {
+        gobj_write_uint32_attr(gobj, "queue_restart_limit", queue_restart_limit);
+        gobj_save_persistent_attrs(gobj, json_string("queue_restart_limit"));
+    }
 
     return msg_iev_build_webix(
         gobj,
         0,
-        json_sprintf("Enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds",
+        json_sprintf("Enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds, queue_restart_limit: %d",
              enable?"YES":"NO",
-             priv->timeout_restart_yuneta),
+             priv->timeout_restart_yuneta,
+             priv->queue_restart_limit
+        ),
         0,
         0,
         kw  // owned
