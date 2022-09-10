@@ -61,6 +61,7 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
 PRIVATE json_t *cmd_reset_counters(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_search(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_tail(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
+PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 
 PRIVATE sdata_desc_t pm_search[] = {
 /*-PM----type-----------name------------flag------------default-----description---------- */
@@ -71,6 +72,12 @@ SDATA_END()
 PRIVATE sdata_desc_t pm_tail[] = {
 /*-PM----type-----------name------------flag------------default-----description---------- */
 SDATAPM (ASN_OCTET_STR, "lines",        0,              0,          "Lines to output. Default: 100."),
+SDATA_END()
+};
+PRIVATE sdata_desc_t pm_restart_yuneta[] = {
+/*-PM----type-----------name------------flag------------default-----description---------- */
+SDATAPM (ASN_BOOLEAN,   "enable",       0,              0,          "Set 1 to enable restart yuneta on queue alarm"),
+SDATAPM (ASN_UNSIGNED,  "timeout_restart_yuneta",       0,          0, "Timeout between restarts in seconds"),
 SDATA_END()
 };
 PRIVATE sdata_desc_t pm_help[] = {
@@ -90,6 +97,7 @@ SDATACM (ASN_SCHEMA,    "send-summary",     0,                  0,              
 SDATACM (ASN_SCHEMA,    "reset-counters",   0,                  0,              cmd_reset_counters, "Reset counters."),
 SDATACM (ASN_SCHEMA,    "search",           0,                  pm_search,      cmd_search,     "Search in log messages."),
 SDATACM (ASN_SCHEMA,    "tail",             0,                  pm_tail,        cmd_tail,       "output the last part of log messages."),
+SDATACM (ASN_SCHEMA,    "restart-yuneta-on-queue-alarm",        0,              pm_restart_yuneta, cmd_restart_yuneta,       "Enable or disable restart-yuneta on queue alarm"),
 SDATA_END()
 };
 
@@ -108,6 +116,11 @@ SDATA (ASN_UNSIGNED64,  "max_rotatoryfile_size",SDF_WR|SDF_PERSIST|SDF_REQUIRED,
 SDATA (ASN_UNSIGNED64,  "rotatory_bf_size",     SDF_WR|SDF_PERSIST|SDF_REQUIRED, ROTATORY_BUFFER_SIZE, "Buffer size of rotatory (in Megas)"),
 SDATA (ASN_INTEGER,     "min_free_disk",        SDF_WR|SDF_PERSIST|SDF_REQUIRED, MIN_FREE_DISK, "Minimun free percent disk"),
 SDATA (ASN_INTEGER,     "min_free_mem",         SDF_WR|SDF_PERSIST|SDF_REQUIRED, MIN_FREE_MEM, "Minimun free percent memory"),
+
+SDATA (ASN_BOOLEAN,     "restart_on_alarm",     SDF_PERSIST|SDF_WR,             FALSE, "If true the logcenter will execute 'restart_yuneta_command' after receive a queue alarm. Next restart will not execute until 'timeout_restart_yuneta' has pass"),
+SDATA (ASN_OCTET_STR,   "restart_yuneta_command", SDF_WR|SDF_PERSIST,           "/yuneta/bin/yshutdown -s; sleep 2; /yuneta/agent/yuneta_agent --start --config-file=/yuneta/agent/yuneta_agent.json", "Restart yuneta command"),
+SDATA (ASN_UNSIGNED,    "timeout_restart_yuneta",SDF_PERSIST|SDF_WR,        1*60*60, "Timeout between restarts in seconds"),
+
 SDATA (ASN_INTEGER,     "timeout",              SDF_RD,  1*1000, "Timeout"),
 SDATA_END()
 };
@@ -145,6 +158,10 @@ typedef struct _PRIVATE_DATA {
     time_t warn_free_mem;
     int last_disk_free_percent;
     int last_mem_free_percent;
+
+    BOOL restart_on_alarm;
+    uint32_t timeout_restart_yuneta;
+    time_t t_restart;
 } PRIVATE_DATA;
 
 
@@ -174,8 +191,10 @@ PRIVATE void mt_create(hgobj gobj)
      *  Do copy of heavy used parameters, for quick access.
      *  HACK The writable attributes must be repeated in mt_writing method.
      */
-    SET_PRIV(timeout,           gobj_read_int32_attr)
-    SET_PRIV(log_filename,      gobj_read_str_attr)
+    SET_PRIV(timeout,                   gobj_read_int32_attr)
+    SET_PRIV(restart_on_alarm,          gobj_read_bool_attr)
+    SET_PRIV(log_filename,              gobj_read_str_attr)
+    SET_PRIV(timeout_restart_yuneta,    gobj_read_uint32_attr)
 
     priv->global_alerts = json_object();
     priv->global_criticals = json_object();
@@ -194,7 +213,15 @@ PRIVATE void mt_writing(hgobj gobj, const char *path)
 {
     PRIVATE_DATA *priv = gobj_priv_data(gobj);
 
-    IF_EQ_SET_PRIV(timeout,             gobj_read_int32_attr)
+    IF_EQ_SET_PRIV(timeout,                     gobj_read_int32_attr)
+    ELIF_EQ_SET_PRIV(timeout_restart_yuneta,    gobj_read_uint32_attr)
+        if(priv->timeout_restart_yuneta == 0) {
+            priv->t_restart = 0;
+        }
+    ELIF_EQ_SET_PRIV(restart_on_alarm,          gobj_read_bool_attr)
+        if(priv->restart_on_alarm == 0) {
+            priv->t_restart = 0;
+        }
     END_EQ_SET_PRIV()
 }
 
@@ -485,6 +512,65 @@ PRIVATE json_t *cmd_tail(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
     );
 }
 
+/***************************************************************************
+ *
+ ***************************************************************************/
+PRIVATE json_t *cmd_restart_yuneta(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
+{
+    PRIVATE_DATA *priv = gobj_priv_data(gobj);
+
+    int enable = kw_get_int(kw, "enable", -1, KW_WILD_NUMBER);
+    int timeout_restart_yuneta = kw_get_int(kw, "timeout_restart_yuneta", -1, KW_WILD_NUMBER);
+    if(enable == -1) {
+        return msg_iev_build_webix(
+            gobj,
+            -1,
+            json_sprintf("What enable?"),
+            0,
+            0,
+            kw  // owned
+        );
+    }
+    if(timeout_restart_yuneta == -1) {
+        return msg_iev_build_webix(
+            gobj,
+            -1,
+            json_sprintf("What timeout_restart_yuneta? (Now is %d seconds)", priv->timeout_restart_yuneta),
+            0,
+            0,
+            kw  // owned
+        );
+    }
+
+    if(timeout_restart_yuneta < 1*60*60) {
+// TODO repon       return msg_iev_build_webix(
+//            gobj,
+//            -1,
+//            json_sprintf("timeout_restart_yuneta must be < 3600 (1 hour) (Now is %d seconds)", priv->timeout_restart_yuneta),
+//            0,
+//            0,
+//            kw  // owned
+//        );
+    }
+
+    gobj_write_bool_attr(gobj, "restart_on_alarm", enable?TRUE:FALSE);
+    gobj_write_uint32_attr(gobj, "timeout_restart_yuneta", timeout_restart_yuneta);
+
+    gobj_save_persistent_attrs(gobj, json_string("restart_on_alarm"));
+    gobj_save_persistent_attrs(gobj, json_string("timeout_restart_yuneta"));
+
+    return msg_iev_build_webix(
+        gobj,
+        0,
+        json_sprintf("Enable restart_yuneta_on_queue_alarm: %s, timeout_restart_yuneta: %d seconds)",
+             enable?"YES":"NO",
+             priv->timeout_restart_yuneta),
+        0,
+        0,
+        kw  // owned
+    );
+}
+
 
 
 
@@ -764,15 +850,6 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
         return -1;
     }
 
-//     json_t *jn_set;
-//     json_t *jn_value;
-//     if(kw_has_key(jn_dict, msgset)) {
-//         jn_set = json_object_get(jn_dict, msgset);
-//     } else {
-//         jn_set = json_object();
-//         json_object_set_new(jn_dict, msgset, jn_set);
-//     }
-
     json_t *jn_set = kw_get_dict(jn_dict, msgset, json_object(), KW_CREATE);
 
 /*
@@ -815,7 +892,7 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
             json_object_set_new(jn_set, msg, json_integer(counter));
         }
 
-   } else if(strcmp(msg, "Publish event WITHOUT subscribers")==0) {
+    } else if(strcmp(msg, "Publish event WITHOUT subscribers")==0) {
         const char *event = kw_get_str(kw, "event", 0, 0);
         if(!empty_string(event)) {
             json_t *jn_level1 = kw_get_dict(jn_set, msg, json_object(), KW_CREATE);
@@ -834,17 +911,44 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
         json_object_set_new(jn_set, msg, json_integer(counter));
     }
 
-//     if(kw_has_key(jn_set, msg)) {
-//         jn_value = json_object_get(jn_set, msg);
-//     } else {
-//         jn_value = json_integer(0);
-//         json_object_set_new(jn_set, msg, jn_value);
-//     }
-//
-//     json_int_t counter = json_integer_value(jn_value);
-//     counter++;
-//
-//     json_object_set_new(jn_set, msg, json_integer(counter));
+    if(strcmp(msgset, MSGSET_QUEUE_ALARM)==0) {
+printf("=========================================> ALARM QUEUE enable:%d\n", priv->restart_on_alarm);
+        if(priv->restart_on_alarm) {
+            const char *restart_yuneta_command = gobj_read_str_attr(gobj, "restart_yuneta_command");
+            if(priv->timeout_restart_yuneta) {
+                if(priv->t_restart == 0) {
+printf("=========================================> FIRST RESTART\n");
+                    priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
+                    int ret = system(restart_yuneta_command);
+printf("=========================================> FIRST RESTART RETURN %d\n", ret);
+                    if(ret < 0) {
+                        log_error(1,
+                            "gobj",         "%s", gobj_full_name(gobj),
+                            "function",     "%s", __FUNCTION__,
+                            "msgset",       "%s", MSGSET_INTERNAL_ERROR,
+                            "msg",          "%s", "system() FAILED",
+                            NULL
+                        );
+                    }
+                } else {
+                    if(test_sectimer(priv->t_restart)) {
+printf("=========================================> NEXT RESTART\n");
+                        priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
+                        int ret = system(restart_yuneta_command);
+                        if(ret < 0) {
+                            log_error(1,
+                                "gobj",         "%s", gobj_full_name(gobj),
+                                "function",     "%s", __FUNCTION__,
+                                "msgset",       "%s", MSGSET_INTERNAL_ERROR,
+                                "msg",          "%s", "system() FAILED",
+                                NULL
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     return 0;
 }
