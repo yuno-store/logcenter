@@ -58,6 +58,8 @@ PRIVATE uint64_t priority_counter[MAX_PRIORITY_COUNTER];
 PRIVATE json_t *cmd_help(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_display_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
+PRIVATE json_t *cmd_enable_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
+PRIVATE json_t *cmd_disable_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_reset_counters(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_search(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
 PRIVATE json_t *cmd_tail(hgobj gobj, const char *cmd, json_t *kw, hgobj src);
@@ -95,6 +97,9 @@ PRIVATE sdata_desc_t command_table[] = {
 SDATACM (ASN_SCHEMA,    "help",             a_help,             pm_help,        cmd_help,       "Command's help"),
 SDATACM (ASN_SCHEMA,    "display-summary",  0,                  0,              cmd_display_summary, "Display the summary report."),
 SDATACM (ASN_SCHEMA,    "send-summary",     0,                  0,              cmd_send_summary, "Send by email the summary report."),
+SDATACM (ASN_SCHEMA,    "enable-send-summary", 0,               0,          cmd_enable_send_summary, "Enable send by email the summary report."),
+SDATACM (ASN_SCHEMA,    "disable-send-summary", 0,              0,          cmd_disable_send_summary, "Disable send by email the summary report."),
+SDATACM (ASN_SCHEMA,    "send-summary",     0,                  0,              cmd_send_summary, "Send by email the summary report."),
 SDATACM (ASN_SCHEMA,    "reset-counters",   0,                  0,              cmd_reset_counters, "Reset counters."),
 SDATACM (ASN_SCHEMA,    "search",           0,                  pm_search,      cmd_search,     "Search in log messages."),
 SDATACM (ASN_SCHEMA,    "tail",             0,                  pm_tail,        cmd_tail,       "output the last part of log messages."),
@@ -123,6 +128,7 @@ SDATA (ASN_OCTET_STR,   "restart_yuneta_command", SDF_WR|SDF_PERSIST,           
 SDATA (ASN_UNSIGNED,    "timeout_restart_yuneta",SDF_PERSIST|SDF_WR,        1*60*60, "Timeout between restarts in seconds"),
 SDATA (ASN_UNSIGNED,    "queue_restart_limit",  SDF_PERSIST|SDF_WR,        10000, "Restart yuneta when queue size is greater"),
 
+SDATA (ASN_BOOLEAN,     "send_summary_disabled",SDF_PERSIST|SDF_WR,         FALSE, "If true then disable send summary"),
 SDATA (ASN_INTEGER,     "timeout",              SDF_RD,  1*1000, "Timeout"),
 SDATA_END()
 };
@@ -448,6 +454,42 @@ PRIVATE json_t *cmd_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj 
         gobj,
         0,
         json_sprintf("Summary report sent by email to %s", gobj_read_str_attr(gobj, "to")),
+        0,
+        0,
+        kw  // owned
+    );
+}
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+PRIVATE json_t *cmd_enable_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
+{
+    gobj_write_bool_attr(gobj, "send_summary_disabled", FALSE);
+    gobj_save_persistent_attrs(gobj, json_string("send_summary_disabled"));
+
+    return msg_iev_build_webix(
+        gobj,
+        0,
+        json_sprintf("Send summary enabled"),
+        0,
+        0,
+        kw  // owned
+    );
+}
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+PRIVATE json_t *cmd_disable_send_summary(hgobj gobj, const char *cmd, json_t *kw, hgobj src)
+{
+    gobj_write_bool_attr(gobj, "send_summary_disabled", TRUE);
+    gobj_save_persistent_attrs(gobj, json_string("send_summary_disabled"));
+
+    return msg_iev_build_webix(
+        gobj,
+        0,
+        json_sprintf("Send summary disabled"),
         0,
         0,
         kw  // owned
@@ -796,6 +838,10 @@ PRIVATE json_t *make_summary(hgobj gobj, BOOL show_internal_errors)
  ***************************************************************************/
 PRIVATE int send_report_email(hgobj gobj, BOOL reset)
 {
+    if(gobj_read_bool_attr(gobj, "send_summary_disabled")) {
+        return 0;
+    }
+
     /*
      *  Day changed, report errors
      */
