@@ -1271,9 +1271,10 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
 
     uint32_t crc = 0;
     for(int i=0; i<len-8; i++) {
-        printf("%d\n", (int)crc);
         crc  += bf[i];
+        printf("===> %d\n", (int)crc);
     }
+    printf("===> %d\n", (int)crc);
     snprintf(
         scrc,
         sizeof(scrc),
