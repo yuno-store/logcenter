@@ -1271,6 +1271,7 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
 
     uint32_t crc = 0;
     for(int i=0; i<len-8; i++) {
+        printf("%d\n", (int)crc);
         crc  += bf[i];
     }
     snprintf(
@@ -1286,8 +1287,8 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
             "function",     "%s", __FUNCTION__,
             "msgset",       "%s", MSGSET_JSON_ERROR,
             "msg",          "%s", "BAD crc",
-            "mcrc",         "%s", scrc,
-            "hcrc",         "%s", pcrc,
+            "my-crc",       "%s", scrc,
+            "his-crc",      "%s", pcrc,
             "bf",           "%s", bf,
             "len",          "%d", len,
             NULL
