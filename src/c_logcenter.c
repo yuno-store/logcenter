@@ -706,7 +706,7 @@ PRIVATE int send_email(
 {
     hgobj gobj_emailsender = gobj_find_service("emailsender", FALSE);
     if(!gobj_emailsender) {
-        log_error(1,
+        log_error(0,
             "gobj",         "%s", gobj_full_name(gobj),
             "function",     "%s", __FUNCTION__,
             "msgset",       "%s", MSGSET_SERVICE_ERROR,
@@ -999,7 +999,7 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
                     priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
                     int ret = system(restart_yuneta_command);
                     if(ret < 0) {
-                        log_error(1,
+                        log_error(0,
                             "gobj",         "%s", gobj_full_name(gobj),
                             "function",     "%s", __FUNCTION__,
                             "msgset",       "%s", MSGSET_INTERNAL_ERROR,
@@ -1012,7 +1012,7 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
                         priv->t_restart = start_sectimer(priv->timeout_restart_yuneta);
                         int ret = system(restart_yuneta_command);
                         if(ret < 0) {
-                            log_error(1,
+                            log_error(0,
                                 "gobj",         "%s", gobj_full_name(gobj),
                                 "function",     "%s", __FUNCTION__,
                                 "msgset",       "%s", MSGSET_INTERNAL_ERROR,
@@ -1257,7 +1257,7 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     char *bf = gbuf_cur_rd_pointer(gbuf);
     int len = gbuf_leftbytes(gbuf);
     if(len < 17) {
-        log_error(1,
+        log_error(0,
             "gobj",         "%s", gobj_full_name(gobj),
             "function",     "%s", __FUNCTION__,
             "msgset",       "%s", MSGSET_JSON_ERROR,
@@ -1292,8 +1292,9 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
             "len",          "%d", len,
             NULL
         );
-//        KW_DECREF(kw);
-//        return -1;
+        log_debug_full_gbuf(0, gbuf, "crc bad");
+        //KW_DECREF(kw);
+        //return -1;
     }
 
     gbuf_set_wr(gbuf, len-8);
@@ -1305,15 +1306,15 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
         uint32_t sequence = strtol(ssequence, NULL, 16);
         if(sequence != last_sequence +1) {
             // Cuando vengan de diferentes fuentes vendrán lógicamente con diferente secuencia
-             log_warning(0,
-                 "gobj",         "%s", gobj_full_name(gobj),
-                 "function",     "%s", __FUNCTION__,
-                 "msgset",       "%s", MSGSET_JSON_ERROR,
-                 "msg",          "%s", "BAD sequence",
-                 "last",         "%d", last_sequence,
-                 "curr",         "%d", sequence,
-                 NULL
-             );
+    //         log_warning(1,
+    //             "gobj",         "%s", gobj_full_name(gobj),
+    //             "function",     "%s", __FUNCTION__,
+    //             "msgset",       "%s", MSGSET_JSON_ERROR,
+    //             "msg",          "%s", "BAD sequence",
+    //             "last",         "%d", last_sequence,
+    //             "curr",         "%d", sequence,
+    //             NULL
+    //         );
         }
         last_sequence = sequence;
     }
