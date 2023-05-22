@@ -1254,7 +1254,7 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
      *---------------------------------------*/
     char ssequence[20]={0}, scrc[20]={0};
 
-    char *bf = gbuf_cur_rd_pointer(gbuf);
+    unsigned char *bf = gbuf_cur_rd_pointer(gbuf);
     int len = gbuf_leftbytes(gbuf);
     if(len < 17) {
         log_error(0,
