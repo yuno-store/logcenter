@@ -1273,16 +1273,14 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     for(int i=0; i<len-8; i++) {
         uint32_t x = (uint32_t)bf[i];
         crc  += x;
-        printf("===> %d (%c,%d)\n", (int)crc, (char)x, (int)x);
     }
-    printf("===> %d\n", (int)crc);
     snprintf(
         scrc,
         sizeof(scrc),
         "%08"PRIX32,
         crc
     );
-    char *pcrc = bf + len - 8;
+    char *pcrc = (char *)bf + len - 8;
     if(strcmp(pcrc, scrc)!=0) {
         log_error(0,
             "gobj",         "%s", gobj_full_name(gobj),
