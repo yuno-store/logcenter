@@ -1281,7 +1281,7 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     );
     char *pcrc = bf + len - 8;
     if(strcmp(pcrc, scrc)!=0) {
-        log_error(1,
+        log_error(0,
             "gobj",         "%s", gobj_full_name(gobj),
             "function",     "%s", __FUNCTION__,
             "msgset",       "%s", MSGSET_JSON_ERROR,
@@ -1292,8 +1292,8 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
             "len",          "%d", len,
             NULL
         );
-        KW_DECREF(kw);
-        return -1;
+//        KW_DECREF(kw);
+//        return -1;
     }
 
     gbuf_set_wr(gbuf, len-8);
@@ -1305,15 +1305,15 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
         uint32_t sequence = strtol(ssequence, NULL, 16);
         if(sequence != last_sequence +1) {
             // Cuando vengan de diferentes fuentes vendrán lógicamente con diferente secuencia
-    //         log_warning(1,
-    //             "gobj",         "%s", gobj_full_name(gobj),
-    //             "function",     "%s", __FUNCTION__,
-    //             "msgset",       "%s", MSGSET_JSON_ERROR,
-    //             "msg",          "%s", "BAD sequence",
-    //             "last",         "%d", last_sequence,
-    //             "curr",         "%d", sequence,
-    //             NULL
-    //         );
+             log_warning(0,
+                 "gobj",         "%s", gobj_full_name(gobj),
+                 "function",     "%s", __FUNCTION__,
+                 "msgset",       "%s", MSGSET_JSON_ERROR,
+                 "msg",          "%s", "BAD sequence",
+                 "last",         "%d", last_sequence,
+                 "curr",         "%d", sequence,
+                 NULL
+             );
         }
         last_sequence = sequence;
     }
