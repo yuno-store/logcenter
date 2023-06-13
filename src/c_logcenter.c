@@ -1255,7 +1255,7 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     char ssequence[20]={0}, scrc[20]={0};
 
     unsigned char *bf = gbuf_cur_rd_pointer(gbuf);
-    int len = gbuf_leftbytes(gbuf);
+    int len = (int)gbuf_leftbytes(gbuf);
     if(len < 17) {
         log_error(0,
             "gobj",         "%s", gobj_full_name(gobj),
@@ -1271,7 +1271,8 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
 
     uint32_t crc = 0;
     for(int i=0; i<len-8; i++) {
-        uint32_t x = (uint32_t)bf[i];
+        unsigned char xx = bf[i];
+        uint32_t x = (uint32_t)xx;
         crc  += x;
     }
     snprintf(
