@@ -1283,18 +1283,18 @@ PRIVATE int ac_on_message(hgobj gobj, const char *event, json_t *kw, hgobj src)
     );
     char *pcrc = (char *)bf + len - 8;
     if(strcmp(pcrc, scrc)!=0) {
-        log_error(0,
-            "gobj",         "%s", gobj_full_name(gobj),
-            "function",     "%s", __FUNCTION__,
-            "msgset",       "%s", MSGSET_JSON_ERROR,
-            "msg",          "%s", "BAD crc",
-            "my-crc",       "%s", scrc,
-            "his-crc",      "%s", pcrc,
-            "bf",           "%s", bf,
-            "len",          "%d", len,
-            NULL
-        );
-        log_debug_full_gbuf(0, gbuf, "crc bad");
+//        log_error(0,
+//            "gobj",         "%s", gobj_full_name(gobj),
+//            "function",     "%s", __FUNCTION__,
+//            "msgset",       "%s", MSGSET_JSON_ERROR,
+//            "msg",          "%s", "BAD crc",
+//            "my-crc",       "%s", scrc,
+//            "his-crc",      "%s", pcrc,
+//            "bf",           "%s", bf,
+//            "len",          "%d", len,
+//            NULL
+//        );
+//        log_debug_full_gbuf(0, gbuf, "crc bad");
         //KW_DECREF(kw);
         //return -1;
     }
