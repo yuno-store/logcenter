@@ -1,8 +1,8 @@
 ##############################################
 #   CMake
 ##############################################
-project(logcenter C)
 cmake_minimum_required(VERSION 3.0)
+project(logcenter C)
 include(CheckIncludeFiles)
 include(CheckSymbolExists)
 
