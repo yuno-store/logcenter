@@ -126,7 +126,7 @@ SDATA (ASN_INTEGER,     "min_free_mem",         SDF_WR|SDF_PERSIST|SDF_REQUIRED,
 SDATA (ASN_BOOLEAN,     "restart_on_alarm",     SDF_PERSIST|SDF_WR,             FALSE, "If true the logcenter will execute 'restart_yuneta_command' after receive a queue alarm. Next restart will not execute until 'timeout_restart_yuneta' has pass"),
 SDATA (ASN_OCTET_STR,   "restart_yuneta_command", SDF_WR|SDF_PERSIST,           "/yuneta/bin/yshutdown -s; sleep 1; /yuneta/agent/yuneta_agent --start --config-file=/yuneta/agent/yuneta_agent.json", "Restart yuneta command"),
 SDATA (ASN_UNSIGNED,    "timeout_restart_yuneta",SDF_PERSIST|SDF_WR,        1*60*60, "Timeout between restarts in seconds"),
-SDATA (ASN_UNSIGNED,    "queue_restart_limit",  SDF_PERSIST|SDF_WR,        10000, "Restart yuneta when queue size is greater"),
+SDATA (ASN_UNSIGNED,    "queue_restart_limit",  SDF_PERSIST|SDF_WR,        0, "Restart yuneta when queue size is greater"),
 
 SDATA (ASN_BOOLEAN,     "send_summary_disabled",SDF_PERSIST|SDF_WR,         FALSE, "If true then disable send summary"),
 SDATA (ASN_INTEGER,     "timeout",              SDF_RD,  1*1000, "Timeout"),
@@ -992,7 +992,7 @@ PRIVATE int do_log_stats(hgobj gobj, int priority, json_t *kw)
 
     if(strcmp(msgset, MSGSET_QUEUE_ALARM)==0) {
         json_int_t queue_size = kw_get_int(kw, "queue_size", 10000, 0);
-        if(priv->restart_on_alarm && queue_size >= priv->queue_restart_limit) {
+        if(priv->restart_on_alarm && priv->queue_restart_limit > 0 && queue_size >= priv->queue_restart_limit) {
             const char *restart_yuneta_command = gobj_read_str_attr(gobj, "restart_yuneta_command");
             if(priv->timeout_restart_yuneta) {
                 if(priv->t_restart == 0) {
