@@ -1073,7 +1073,9 @@ PRIVATE json_t *extrae_json(hgobj gobj, FILE *file, uint32_t maxcount, json_t *j
             }
             gbuf_reset_wr(gbuf);
             gbuf_reset_rd(gbuf);
-            gbuf_append(gbuf, &c, 1);
+            if(gbuf_append(gbuf, &c, 1)<=0) {
+                abort();
+            }
             brace_indent = 1;
             st = WAIT_END_DICT;
             break;
@@ -1083,7 +1085,9 @@ PRIVATE json_t *extrae_json(hgobj gobj, FILE *file, uint32_t maxcount, json_t *j
             } else if(c == '}') {
                 brace_indent--;
             }
-            gbuf_append(gbuf, &c, 1);
+            if(gbuf_append(gbuf, &c, 1)<=0) {
+                abort();
+            }
             if(brace_indent == 0) {
                 json_t *jn_dict = legalstring2json(gbuf_cur_rd_pointer(gbuf), FALSE);
                 if(jn_dict) {
